@@ -304,10 +304,10 @@ obs_var_dict = Dict(
 )
 
 sim_obs_data_dict = Dict{}()
-# arr = ["pr"]
+arr = ["rsdt"]
 # keys(sim_var_dict)
 
-for short_name in keys(sim_var_dict)
+for short_name in arr
     println(short_name)
     # Observational data
 
@@ -340,6 +340,7 @@ for short_name in keys(sim_var_dict)
     obs_var = reorder_as(obs_var, sim_var)
 
     ### JANKY WAY OF DOING THIS
+    # TODO: For MAM, check what dates we are using here
     # obs_var = ClimaAnalysis.window(
     #     obs_var,
     #     "time";
@@ -356,7 +357,7 @@ for short_name in keys(sim_var_dict)
     obs_var_seasons = ClimaAnalysis.split_by_season(obs_var)
     sim_var_seasons = ClimaAnalysis.split_by_season(sim_var)
 
-    # Push annual to end of vector
+    # Add annual to start of list
     obs_var_seasons = [obs_var, obs_var_seasons...]
     sim_var_seasons = [sim_var, sim_var_seasons...]
 
@@ -372,7 +373,7 @@ for short_name in keys(sim_var_dict)
     sim_obs_data_dict[short_name] = [(sim_var_s, obs_var_s) for (sim_var_s, obs_var_s) in zip(sim_var_seasons, obs_var_seasons)]
 end
 
-for short_name in keys(sim_var_dict)
+for short_name in arr
     fig = CairoMakie.Figure()
     ClimaAnalysis.Visualize.plot_bias_on_globe!(
         fig,
