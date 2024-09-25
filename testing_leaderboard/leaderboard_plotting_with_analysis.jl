@@ -97,7 +97,7 @@ sim_var_dict = Dict(
 )
 obs_var_dict = Dict(
     "pr" =>
-        (start_date) -> begin
+        () -> begin
             obs_var = ClimaAnalysis.read_var(
                 joinpath(
                     @clima_artifact("precipitation_obs"),
@@ -105,17 +105,19 @@ obs_var_dict = Dict(
                 ),
                 short_name = "precip",
             )
-            obs_var = dates_to_times(obs_var, start_date)
             return obs_var
         end,
     "rsdt" =>
-        (start_date) -> begin
+        () -> begin
             obs_var = ClimaAnalysis.read_var(
-                joinpath(@clima_artifact("radiation_obs"), "CERES_EBAF_Ed4.2_Subset_200003-201910.nc"),
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
                 short_name = "solar_mon",
             )
-            obs_var = dates_to_times(obs_var, start_date)
             # Convert from W m-2 to W m^-2
+            # TODO: This should change to be a helper function so that we don't need to copy and paste this everywhere
             obs_var = ClimaAnalysis.convert_units(
                 obs_var,
                 "W m^-2",
@@ -124,7 +126,7 @@ obs_var_dict = Dict(
             return obs_var
         end,
     "rsut" =>
-        (start_date) -> begin
+        () -> begin
             obs_var = ClimaAnalysis.read_var(
                 joinpath(
                     @clima_artifact("radiation_obs"),
@@ -132,7 +134,6 @@ obs_var_dict = Dict(
                 ),
                 short_name = "toa_sw_all_mon",
             )
-            obs_var = dates_to_times(obs_var, start_date)
             obs_var = ClimaAnalysis.convert_units(
                 obs_var,
                 "W m^-2",
@@ -141,7 +142,7 @@ obs_var_dict = Dict(
             return obs_var
         end,
     "rlut" =>
-        (start_date) -> begin
+        () -> begin
             obs_var = ClimaAnalysis.read_var(
                 joinpath(
                     @clima_artifact("radiation_obs"),
@@ -149,7 +150,150 @@ obs_var_dict = Dict(
                 ),
                 short_name = "toa_lw_all_mon",
             )
-            obs_var = dates_to_times(obs_var, start_date)
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsutcs" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "toa_sw_clr_t_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rlutcs" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "toa_lw_clr_t_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsds" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_sw_down_all_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsus" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_sw_up_all_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rlds" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_lw_down_all_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rlus" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_lw_up_all_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsdscs" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_sw_down_clr_t_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsuscs" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_sw_up_clr_t_mon",
+            )
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rldscs" =>
+        () -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "sfc_lw_down_clr_t_mon",
+            )
             obs_var = ClimaAnalysis.convert_units(
                 obs_var,
                 "W m^-2",
@@ -159,9 +303,11 @@ obs_var_dict = Dict(
         end,
 )
 
-arr = ["rsdt"]
+arr = ["pr"]
+# keys(sim_var_dict)
 
 for short_name in arr
+    println(short_name)
     # Observational data
 
     sim_var = sim_var_dict[short_name]()
@@ -169,7 +315,8 @@ for short_name in arr
     # TODO: Error when showing/printing this variable (probably because of dates in time
     # dimension which interpolation does not like)
     # Simulation data
-    obs_var = obs_var_dict[short_name](sim_var.attributes["start_date"])
+    obs_var = obs_var_dict[short_name]()
+    obs_var = dates_to_times(obs_var, sim_var.attributes["start_date"])
 
     # Get rid of startup times
     # Make a copy since the function return the OutputVar's time array and not a copy of it
@@ -192,16 +339,18 @@ for short_name in arr
     obs_var = reorder_as(obs_var, sim_var)
 
     ### JANKY WAY OF DOING THIS
-    obs_var = ClimaAnalysis.window(
-        obs_var,
-        "time";
-        left = diagnostics_times[begin],
-        right = diagnostics_times[end],
-    )
-    obs_var = resampled_as_ignore_time(obs_var, sim_var)
+    # obs_var = ClimaAnalysis.window(
+    #     obs_var,
+    #     "time";
+    #     left = diagnostics_times[begin],
+    #     right = diagnostics_times[end],
+    # )
+    # obs_var = resampled_as_ignore_time(obs_var, sim_var)
     ### JANKY WAY OF DOING THIS
-    # Clearner way about be using only the line below
-    # obs_var = resampled_as(obs_var, sim_var)
+    # Cleaner way would be using only the line below (however, this change the results)
+    obs_var = resampled_as(obs_var, sim_var)
+
+    # TODO: Add split by season here and make a for loop?
 
     # Take time average
     obs_var = obs_var |> ClimaAnalysis.average_time
@@ -220,5 +369,5 @@ for short_name in arr
         obs_var,
         cmap_extrema = compare_vars_biases_plot_extrema[short_name],
     )
-    CairoMakie.save("testing_leaderboard/saved_leaderboard_analysis/bias_pr_total.png", fig)
+    CairoMakie.save("testing_leaderboard/saved_leaderboard_analysis/bias_" * short_name * "_total.png", fig)
 end
