@@ -2,6 +2,15 @@ using ClimaAnalysis
 using Dates
 using OrderedCollections: OrderedDict
 
+Obs = Dict(
+    "pr" => () -> begin
+OutputVar("nameoffile")
+shiftendofend
+    end
+
+
+)
+
 # Convert dates to time for pr_obs_var
 # for converting dates to float (with a start date added in attributes)
 function dates_to_times(
@@ -38,6 +47,7 @@ function dates_to_times(
     return OutputVar(ret_attribs, ret_dims, ret_dim_attribs, ret_data)
 end
 
+# TODO: Make private
 function reorder_as(obs_var::OutputVar, dest_var::OutputVar)
     conventional_dim_name_obs = conventional_dim_name.(keys(obs_var.dims))
     conventional_dim_name_dest = conventional_dim_name.(keys(dest_var.dims))
@@ -72,4 +82,35 @@ function shift_lon(var::OutputVar)
     ret_dim_attribs = deepcopy(var.dim_attributes)
     ret_data = copy(var.data)
     return OutputVar(ret_attribs, ret_dims, ret_dim_attribs, ret_data)
+end
+
+# TODO: Tidy this up and move it to resampled_as
+function resampled_as_ignore_time(src_var::OutputVar, dest_var::OutputVar)
+    ClimaAnalysis.Var._check_dims_consistent(src_var, dest_var)
+
+    # For now, assume it is always time, lon, and lat
+    dims = (ClimaAnalysis.times(src_var), ClimaAnalysis.longitudes(dest_var), ClimaAnalysis.latitudes(dest_var))
+    prod = Base.product(dims...)
+
+    src_resampled_data =
+        [src_var(pt) for pt in prod]
+
+    # Construct new OutputVar to return
+    src_var_ret_dims = empty(src_var.dims)
+
+    # Loop because names could be different in src_var compared to dest_var
+    # (e.g., `long` in one and `lon` in the other)
+    for (dim_name, dim_data) in zip(keys(src_var.dims), values(dest_var.dims))
+        src_var_ret_dims[dim_name] = copy(dim_data)
+    end
+    src_var_ret_dims["time"] = copy(times(src_var))
+
+    scr_var_ret_attribs = deepcopy(src_var.attributes)
+    scr_var_ret_dim_attribs = deepcopy(src_var.dim_attributes)
+    return ClimaAnalysis.OutputVar(
+        scr_var_ret_attribs,
+        src_var_ret_dims,
+        scr_var_ret_dim_attribs,
+        src_resampled_data,
+    )
 end

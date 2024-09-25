@@ -108,7 +108,17 @@ for short_name in arr
     obs_var = dates_to_times(obs_var, sim_var.attributes["start_date"])
     obs_var = reorder_as(obs_var, sim_var)
 
-    obs_var = resampled_as(obs_var, sim_var)
+    obs_var = ClimaAnalysis.window(
+        obs_var,
+        "time";
+        left = diagnostics_times[begin],
+        right = diagnostics_times[end], # janky way of being able to resample...
+    )
+
+    # THIS IS THE CULPRIT (I NEED TO RESAMPLE ONLY OVER LON AND LAT AND NOT OVER TIME)
+    # @infiltrate
+    obs_var = resampled_as_ignore_time(obs_var, sim_var)
+    # @infiltrate
 
     # Take time average
     obs_var = obs_var |> ClimaAnalysis.average_time

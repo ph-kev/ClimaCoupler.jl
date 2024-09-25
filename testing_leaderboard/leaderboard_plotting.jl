@@ -1,4 +1,5 @@
 using Dates
+using Infiltrator
 
 @info "Error against observations"
 # include("user_io/leaderboard.jl")
@@ -110,5 +111,6 @@ MAM, JJA, SON, DJF = Leaderboard.split_by_season(output_dates)
 # Leaderboard.plot_leaderboard(rmses; output_path=joinpath(leaderboard_base_path, "bias_leaderboard.png"))
 
 ann_biases = compute_biases(["pr"], output_dates)
+@Main.infiltrate
 
 nothing
