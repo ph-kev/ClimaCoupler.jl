@@ -67,7 +67,7 @@ obs_var_dict = Dict(
     ),
 )
 
-arr = ["pr"]
+arr = ["rsdt"]
 
 for short_name in arr
     # Observational data
@@ -128,6 +128,11 @@ for short_name in arr
     obs_var.dim_attributes["lon"] = sim_var.dim_attributes["lon"]
     obs_var.dim_attributes["lat"] = sim_var.dim_attributes["lat"]
 
+    obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
 
     bias_pr_var = ClimaAnalysis.bias(sim_var, obs_var)
 

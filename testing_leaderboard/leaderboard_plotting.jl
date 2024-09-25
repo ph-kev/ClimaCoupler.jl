@@ -110,7 +110,6 @@ MAM, JJA, SON, DJF = Leaderboard.split_by_season(output_dates)
 
 # Leaderboard.plot_leaderboard(rmses; output_path=joinpath(leaderboard_base_path, "bias_leaderboard.png"))
 
-ann_biases = compute_biases(["pr"], output_dates)
-@Main.infiltrate
+ann_biases = compute_biases(["rsdt"], output_dates)
 
 nothing

@@ -1,10 +1,10 @@
-using ClimaAnalysis
+import ClimaAnalysis
 import ClimaUtilities.ClimaArtifacts: @clima_artifact
 using Dates
 using OrderedCollections: OrderedDict
 import GeoMakie
 import CairoMakie
-using Infiltrator
+
 include("leaderboard_plotting_utils.jl")
 
 @info "Error against observations"
@@ -36,47 +36,140 @@ diagnostics_folder_path = "testing_leaderboard/leaderboard_data/output_active"
 
 # Dicts for loading simulational and observational data
 sim_var_dict = Dict(
-    "pr" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "pr"),
-    "rsdt" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsdt"),
-    # "rsut" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsut"),
-    # "rlut" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlut"),
-    # "rsutcs" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsutcs"),
-    # "rlutcs" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlutcs"),
-    # "rsds" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsds"),
-    # "rsus" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsus"),
-    # "rlds" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlds"),
-    # "rlus" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlus"),
-    # "rsdscs" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsdscs"),
-    # "rsuscs" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsuscs"),
-    # "rldscs" => get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rldscs"),
+    "pr" =>
+        () -> begin
+            sim_var = get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "pr")
+            sim_var = ClimaAnalysis.convert_units(
+                sim_var,
+                "mm/day",
+                conversion_function = x -> x .* Float32(-86400),
+            )
+            return sim_var
+        end,
+    "rsdt" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsdt")
+        end,
+    "rsut" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsut")
+        end,
+    "rlut" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlut")
+        end,
+    "rsutcs" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsutcs")
+        end,
+    "rlutcs" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlutcs")
+        end,
+    "rsds" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsds")
+        end,
+    "rsus" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsus")
+        end,
+    "rlds" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlds")
+        end,
+    "rlus" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rlus")
+        end,
+    "rsdscs" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsdscs")
+        end,
+    "rsuscs" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rsuscs")
+        end,
+    "rldscs" =>
+        () -> begin
+            return get(ClimaAnalysis.SimDir(diagnostics_folder_path), short_name = "rldscs")
+        end,
 )
 obs_var_dict = Dict(
-    "pr" => ClimaAnalysis.read_var(
-        joinpath(
-            @clima_artifact("precipitation_obs"),
-            "gpcp.precip.mon.mean.197901-202305.nc",
-        ),
-        short_name = "precip",
-    ),
-    "rsdt" => ClimaAnalysis.read_var(
-        joinpath(
-            @clima_artifact("radiation_obs"),
-            "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
-        ),
-        short_name = "solar_mon",
-    ),
+    "pr" =>
+        (start_date) -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("precipitation_obs"),
+                    "gpcp.precip.mon.mean.197901-202305.nc",
+                ),
+                short_name = "precip",
+            )
+            obs_var = dates_to_times(obs_var, start_date)
+            return obs_var
+        end,
+    "rsdt" =>
+        (start_date) -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(@clima_artifact("radiation_obs"), "CERES_EBAF_Ed4.2_Subset_200003-201910.nc"),
+                short_name = "solar_mon",
+            )
+            obs_var = dates_to_times(obs_var, start_date)
+            # Convert from W m-2 to W m^-2
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rsut" =>
+        (start_date) -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "toa_sw_all_mon",
+            )
+            obs_var = dates_to_times(obs_var, start_date)
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
+    "rlut" =>
+        (start_date) -> begin
+            obs_var = ClimaAnalysis.read_var(
+                joinpath(
+                    @clima_artifact("radiation_obs"),
+                    "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
+                ),
+                short_name = "toa_lw_all_mon",
+            )
+            obs_var = dates_to_times(obs_var, start_date)
+            obs_var = ClimaAnalysis.convert_units(
+                obs_var,
+                "W m^-2",
+                conversion_function = x -> x,
+            )
+            return obs_var
+        end,
 )
 
-arr = ["pr"]
+arr = ["rsdt"]
 
 for short_name in arr
     # Observational data
-    sim_var = sim_var_dict[short_name]
+
+    sim_var = sim_var_dict[short_name]()
 
     # TODO: Error when showing/printing this variable (probably because of dates in time
     # dimension which interpolation does not like)
     # Simulation data
-    obs_var = obs_var_dict[short_name]
+    obs_var = obs_var_dict[short_name](sim_var.attributes["start_date"])
 
     # Get rid of startup times
     # Make a copy since the function return the OutputVar's time array and not a copy of it
@@ -96,19 +189,19 @@ for short_name in arr
         right = diagnostics_times[end],
     )
 
-    # Convert units so they match (-1 kg/m/s2 -> 1 mm/day) for pr
-    if short_name == "pr"
-        sim_var = Var.convert_units(
-            sim_var,
-            "mm/day",
-            conversion_function = x -> x .* Float32(-86400),
-        )
-    end
-
-    obs_var = dates_to_times(obs_var, sim_var.attributes["start_date"])
     obs_var = reorder_as(obs_var, sim_var)
 
-    obs_var = resampled_as(obs_var, sim_var)
+    ### JANKY WAY OF DOING THIS
+    obs_var = ClimaAnalysis.window(
+        obs_var,
+        "time";
+        left = diagnostics_times[begin],
+        right = diagnostics_times[end],
+    )
+    obs_var = resampled_as_ignore_time(obs_var, sim_var)
+    ### JANKY WAY OF DOING THIS
+    # Clearner way about be using only the line below
+    # obs_var = resampled_as(obs_var, sim_var)
 
     # Take time average
     obs_var = obs_var |> ClimaAnalysis.average_time
@@ -117,7 +210,6 @@ for short_name in arr
     # Fix up dim_attributes so they are the same (otherwise we get an error from ClimaAnalysis.arecompatible)
     obs_var.dim_attributes["lon"] = sim_var.dim_attributes["lon"]
     obs_var.dim_attributes["lat"] = sim_var.dim_attributes["lat"]
-
 
     bias_pr_var = ClimaAnalysis.bias(sim_var, obs_var)
 

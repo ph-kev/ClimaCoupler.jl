@@ -2,17 +2,9 @@ using ClimaAnalysis
 using Dates
 using OrderedCollections: OrderedDict
 
-Obs = Dict(
-    "pr" => () -> begin
-OutputVar("nameoffile")
-shiftendofend
-    end
-
-
-)
-
 # Convert dates to time for pr_obs_var
 # for converting dates to float (with a start date added in attributes)
+# TODO: Split this into two different functions
 function dates_to_times(
     var::OutputVar,
     new_start_date::String;
@@ -48,6 +40,7 @@ function dates_to_times(
 end
 
 # TODO: Make private
+# TODO: Move to ClimaAnalysis
 function reorder_as(obs_var::OutputVar, dest_var::OutputVar)
     conventional_dim_name_obs = conventional_dim_name.(keys(obs_var.dims))
     conventional_dim_name_dest = conventional_dim_name.(keys(dest_var.dims))
@@ -72,20 +65,22 @@ function reorder_as(obs_var::OutputVar, dest_var::OutputVar)
     return OutputVar(ret_attribs, ret_dims, ret_dim_attribs, ret_data)
 end
 
-# TODO: probably a more generic way of doing this?
-function shift_lon(var::OutputVar)
-    # Assume lon is between [0, 360] so we shift to get lon between [-180, 180]
-    new_lon = var.dims["lon"] .- 180.0
-    ret_dims = deepcopy(var.dims)
-    ret_dims[ClimaAnalysis.longitude_name(var)] = new_lon
-    ret_attribs = deepcopy(var.attributes)
-    ret_dim_attribs = deepcopy(var.dim_attributes)
-    ret_data = copy(var.data)
-    return OutputVar(ret_attribs, ret_dims, ret_dim_attribs, ret_data)
-end
+# # TODO: I don't need this anymore
+# function shift_lon(var::OutputVar)
+#     # Assume lon is between [0, 360] so we shift to get lon between [-180, 180]
+#     new_lon = var.dims["lon"] .- 180.0
+#     ret_dims = deepcopy(var.dims)
+#     ret_dims[ClimaAnalysis.longitude_name(var)] = new_lon
+#     ret_attribs = deepcopy(var.attributes)
+#     ret_dim_attribs = deepcopy(var.dim_attributes)
+#     ret_data = copy(var.data)
+#     return OutputVar(ret_attribs, ret_dims, ret_dim_attribs, ret_data)
+# end
 
-# TODO: Tidy this up and move it to resampled_as
+# # TODO: Tidy this up and move it to resampled_as
+# # TODO: I don't need this anymore
 function resampled_as_ignore_time(src_var::OutputVar, dest_var::OutputVar)
+    println("Resampling without time")
     ClimaAnalysis.Var._check_dims_consistent(src_var, dest_var)
 
     # For now, assume it is always time, lon, and lat

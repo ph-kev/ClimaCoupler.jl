@@ -141,6 +141,7 @@ its attributes.
 function bias(obs_ds::ObsDataSource, sim_ds::SimDataSource, target_dates::AbstractArray{<:Dates.DateTime})
     lonlat = sim_ds.lonlat
     simulated_data = map(d -> data_at_date(sim_ds, d), target_dates) |> mean
+    println("Simulated data is $(simulated_data[1,1:5])")
     observational_data = map(d -> find_and_resample(obs_ds, d, lonlat), target_dates) |> mean
 
     bias_arr = bias(simulated_data, observational_data, lonlat)
