@@ -74,42 +74,38 @@ output_dates =
 ## collect all days between cs.dates.date0 and cs.dates.date
 MAM, JJA, SON, DJF = Leaderboard.split_by_season(output_dates)
 
-# for compare_vars_biases in compare_vars_biases_groups
-#     ann_biases = compute_biases(compare_vars_biases, output_dates)
-#     plot_biases(output_dates, ann_biases, first(compare_vars_biases) * "_total")
+for compare_vars_biases in compare_vars_biases_groups
+    ann_biases = compute_biases(compare_vars_biases, output_dates)
+    plot_biases(output_dates, ann_biases, first(compare_vars_biases) * "_total")
 
-#     MAM_biases = compute_biases(compare_vars_biases, MAM)
-#     plot_biases(MAM, MAM_biases, first(compare_vars_biases) * "_MAM")
-#     JJA_biases = compute_biases(compare_vars_biases, JJA)
-#     plot_biases(JJA, JJA_biases, first(compare_vars_biases) * "_JJA")
-#     SON_biases = compute_biases(compare_vars_biases, SON)
-#     plot_biases(SON, SON_biases, first(compare_vars_biases) * "_SON")
-#     DJF_biases = compute_biases(compare_vars_biases, DJF)
-#     plot_biases(DJF, DJF_biases, first(compare_vars_biases) * "_DJF")
-# end
+    MAM_biases = compute_biases(compare_vars_biases, MAM)
+    plot_biases(MAM, MAM_biases, first(compare_vars_biases) * "_MAM")
+    JJA_biases = compute_biases(compare_vars_biases, JJA)
+    plot_biases(JJA, JJA_biases, first(compare_vars_biases) * "_JJA")
+    SON_biases = compute_biases(compare_vars_biases, SON)
+    plot_biases(SON, SON_biases, first(compare_vars_biases) * "_SON")
+    DJF_biases = compute_biases(compare_vars_biases, DJF)
+    plot_biases(DJF, DJF_biases, first(compare_vars_biases) * "_DJF")
+end
 
-# compare_vars_rmses = ["pr", "rsut", "rlut"]
+compare_vars_rmses = ["pr", "rsut", "rlut"]
 
-# ann_biases = compute_biases(compare_vars_rmses, output_dates)
-# MAM_biases = compute_biases(compare_vars_rmses, MAM)
-# JJA_biases = compute_biases(compare_vars_rmses, JJA)
-# SON_biases = compute_biases(compare_vars_rmses, SON)
-# DJF_biases = compute_biases(compare_vars_rmses, DJF)
+ann_biases = compute_biases(compare_vars_rmses, output_dates)
+MAM_biases = compute_biases(compare_vars_rmses, MAM)
+JJA_biases = compute_biases(compare_vars_rmses, JJA)
+SON_biases = compute_biases(compare_vars_rmses, SON)
+DJF_biases = compute_biases(compare_vars_rmses, DJF)
 
-# rmses = map(
-#     (index) -> Leaderboard.RMSEs(;
-#         model_name="CliMA",
-#         ANN=ann_biases[index],
-#         DJF=DJF_biases[index],
-#         MAM=MAM_biases[index],
-#         JJA=JJA_biases[index],
-#         SON=SON_biases[index],
-#     ),
-#     1:length(compare_vars_rmses),
-# )
+rmses = map(
+    (index) -> Leaderboard.RMSEs(;
+        model_name="CliMA",
+        ANN=ann_biases[index],
+        DJF=DJF_biases[index],
+        MAM=MAM_biases[index],
+        JJA=JJA_biases[index],
+        SON=SON_biases[index],
+    ),
+    1:length(compare_vars_rmses),
+)
 
-# Leaderboard.plot_leaderboard(rmses; output_path=joinpath(leaderboard_base_path, "bias_leaderboard.png"))
-
-ann_biases = compute_biases(["rsdt"], MAM)
-
-nothing
+Leaderboard.plot_leaderboard(rmses; output_path=joinpath(leaderboard_base_path, "bias_leaderboard.png"))

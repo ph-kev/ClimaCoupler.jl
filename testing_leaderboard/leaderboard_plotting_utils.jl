@@ -109,3 +109,10 @@ function resampled_as_ignore_time(src_var::OutputVar, dest_var::OutputVar)
         src_resampled_data,
     )
 end
+
+# TODO: Fix legend in ClimaAnalysis.Leaderboard (don't include CliMA again for
+# worst and make it multiline or out of legend or something?), see if units can
+# be defined for W m-2 (registering units), reorder_as, extrapolation, data
+# loader (for loops)
+# TODO: Fix dates as well
+# TODO: Try to define units "W m^-2" as "W m-2"
