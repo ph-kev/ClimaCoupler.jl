@@ -2,42 +2,24 @@ import ClimaAnalysis
 import ClimaUtilities.ClimaArtifacts: @clima_artifact
 import GeoMakie
 import CairoMakie
-
-include("leaderboard_plotting_utils.jl")
+import Dates
 
 @info "Error against observations"
 
-# TODO: Make this an array of tuples or something so that we know what correspond to what
-# Short names for loading simulation data
-short_names_no_pr = [
-    "rsdt",
-    "rsut",
-    "rlut",
-    "rsutcs",
-    "rlutcs",
-    "rsds",
-    "rsus",
-    "rlds",
-    "rlus",
-    "rsdscs",
-    "rsuscs",
-    "rldscs",
-]
-
-# Short names for loading observational data
-obs_var_short_names_no_pr = [
-    "solar_mon",
-    "toa_sw_all_mon",
-    "toa_lw_all_mon",
-    "toa_sw_clr_t_mon",
-    "toa_lw_clr_t_mon",
-    "sfc_sw_down_all_mon",
-    "sfc_sw_up_all_mon",
-    "sfc_lw_down_all_mon",
-    "sfc_lw_up_all_mon",
-    "sfc_sw_down_clr_t_mon",
-    "sfc_sw_up_clr_t_mon",
-    "sfc_lw_down_clr_t_mon",
+# Tuple of short names for loading simulation and observational data
+sim_obs_short_names_no_pr = [
+    ("rsdt", "solar_mon"),
+    ("rsut", "toa_sw_all_mon"),
+    ("rlut", "toa_lw_all_mon"),
+    ("rsutcs", "toa_sw_clr_t_mon"),
+    ("rlutcs", "toa_lw_clr_t_mon"),
+    ("rsds", "sfc_sw_down_all_mon"),
+    ("rsus", "sfc_sw_up_all_mon"),
+    ("rlds", "sfc_lw_down_all_mon"),
+    ("rlus", "sfc_lw_up_all_mon"),
+    ("rsdscs", "sfc_sw_down_clr_t_mon"),
+    ("rsuscs", "sfc_sw_up_clr_t_mon"),
+    ("rldscs", "sfc_lw_down_clr_t_mon"),
 ]
 
 compare_vars_biases_plot_extrema = Dict(
@@ -56,14 +38,13 @@ compare_vars_biases_plot_extrema = Dict(
     "rldscs" => (-20.0, 20.0),
 )
 
-# diagnostics_folder_path = atmos_sim.integrator.p.output_dir
-# leaderboard_base_path = dir_paths.artifacts
-
 # Path to saved leaderboards
 leaderboard_base_path = "testing_leaderboard/saved_leaderboard_analysis/"
+# leaderboard_base_path = dir_paths.artifacts
 
 # Path to simulation data
 diagnostics_folder_path = "testing_leaderboard/leaderboard_data/output_active"
+# diagnostics_folder_path = atmos_sim.integrator.p.output_dir
 
 # Dict for loading in simulation data
 sim_var_dict = Dict{String,Any}(
@@ -75,18 +56,24 @@ sim_var_dict = Dict{String,Any}(
                 "mm/day",
                 conversion_function = x -> x .* Float32(-86400),
             )
+            sim_var = ClimaAnalysis.shift_to_beginning_of_month(
+                sim_var,
+                shift_by_months = -1,
+            )
             return sim_var
         end,
 )
 
 # Loop to load the rest of the simulation data
-for short_name in short_names_no_pr
+for (short_name, _) in sim_obs_short_names_no_pr
     sim_var_dict[short_name] =
         () -> begin
             sim_var = get(
                 ClimaAnalysis.SimDir(diagnostics_folder_path),
                 short_name = short_name,
             )
+            sim_var =
+                ClimaAnalysis.shift_to_beginning_of_month(sim_var, shift_by_months = -1)
             return sim_var
         end
 end
@@ -94,31 +81,37 @@ end
 # Dict for loading observational data
 obs_var_dict = Dict{String,Any}(
     "pr" =>
-        () -> begin
+        (start_date) -> begin
             obs_var = ClimaAnalysis.OutputVar(
                 joinpath(
                     @clima_artifact("precipitation_obs"),
                     "gpcp.precip.mon.mean.197901-202305.nc",
                 ),
                 "precip",
+                new_start_date = start_date,
+                shift_by = Dates.firstdayofmonth,
             )
             return obs_var
         end,
 )
 
-# Load in the rest of the observational data
-for (sim_name, obs_name) in zip(short_names_no_pr, obs_var_short_names_no_pr)
+# Loop to load the rest of the observational data
+for (sim_name, obs_name) in sim_obs_short_names_no_pr
     obs_var_dict[sim_name] =
-        () -> begin
+        (start_date) -> begin
             obs_var = ClimaAnalysis.OutputVar(
                 joinpath(
                     @clima_artifact("radiation_obs"),
                     "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
                 ),
                 obs_name,
+                new_start_date = start_date,
+                shift_by = Dates.firstdayofmonth,
             )
-            # Convert from W m-2 to W m^-2
-            obs_var = ClimaAnalysis.set_units(obs_var, "W m^-2")
+            # Convert from W m-2 to W m^-2 (TODO: Add check that it is the units we are expecting)
+            units(obs_var) == "W m-2" ?
+            obs_var = ClimaAnalysis.set_units(obs_var, "W m^-2") :
+            error("Did not expect $(units(obs_var)) for the units")
             return obs_var
         end
 end
@@ -131,19 +124,22 @@ for short_name in keys(sim_var_dict)
     sim_var = sim_var_dict[short_name]()
 
     # Observational data
-    obs_var = obs_var_dict[short_name]()
-    obs_var = dates_to_times_no_extra_day(obs_var, sim_var.attributes["start_date"])
+    obs_var = obs_var_dict[short_name](sim_var.attributes["start_date"])
 
     # Get rid of startup times
     # Make a copy since the function return the OutputVar's time array and not a copy of it
     diagnostics_times = ClimaAnalysis.times(sim_var) |> copy
-    # Remove the first `spinup_months` months from the leaderboard
     spinup_months = 6
-    # The monthly average output is at the end of the month, so this is safe
-    spinup_cutoff = spinup_months * 31 * 86400.0
-    if diagnostics_times[end] > spinup_cutoff
-        filter!(x -> x > spinup_cutoff, diagnostics_times)
+    sim_start_date = Dates.DateTime(sim_var.attributes["start_date"])
+
+    # spinup_cutoff_date is the date we want to include
+    spinup_cutoff_date = sim_start_date + Dates.Month(spinup_months)
+    spinup_cutoff =
+        ClimaAnalysis.Utils.period_to_seconds_float(spinup_cutoff_date - sim_start_date)
+    if diagnostics_times[end] >= spinup_cutoff
+        filter!(x -> x >= spinup_cutoff, diagnostics_times)
     end
+
 
     # Use window to get rid of spinup months
     sim_var = ClimaAnalysis.window(
@@ -153,9 +149,7 @@ for short_name in keys(sim_var_dict)
         right = diagnostics_times[end],
     )
 
-    obs_var = ClimaAnalysis.reordered_as(obs_var, sim_var) # TODO: Remove this later, only for debugging
     obs_var = ClimaAnalysis.resampled_as(obs_var, sim_var)
-
     obs_var_seasons = ClimaAnalysis.split_by_season(obs_var)
     sim_var_seasons = ClimaAnalysis.split_by_season(sim_var)
 
@@ -188,10 +182,10 @@ compare_vars_biases_groups = [
 # Plot bias plots
 for season in seasons
     for compare_vars_biases in compare_vars_biases_groups
-        fig = CairoMakie.Figure(; size = (600, 300 * length(compare_vars_biases)))
+        fig_bias = CairoMakie.Figure(; size = (600, 300 * length(compare_vars_biases)))
         for (loc, short_name) in enumerate(compare_vars_biases)
             ClimaAnalysis.Visualize.plot_bias_on_globe!(
-                fig,
+                fig_bias,
                 sim_obs_comparsion_dict[short_name][season]...,
                 cmap_extrema = compare_vars_biases_plot_extrema[short_name],
                 p_loc = (loc, 1),
@@ -204,7 +198,7 @@ for season in seasons
                     leaderboard_base_path,
                     "bias_$(first(compare_vars_biases))_$season.png",
                 ),
-                fig,
+                fig_bias,
             )
         else
             CairoMakie.save(
@@ -212,7 +206,7 @@ for season in seasons
                     leaderboard_base_path,
                     "bias_$(first(compare_vars_biases))_total.png",
                 ),
-                fig,
+                fig_bias,
             )
         end
     end
@@ -258,10 +252,10 @@ end
 
 # Plot box plots
 rmse_vars = (rmse_var_pr, rmse_var_rsut, rmse_var_rlut)
-fig = CairoMakie.Figure(; size = (800, 300 * 3 + 400), fontsize = 20)
+fig_leaderboard = CairoMakie.Figure(; size = (800, 300 * 3 + 400), fontsize = 20)
 for i in eachindex(rmse_vars)
     ClimaAnalysis.Visualize.plot_boxplot!(
-        fig,
+        fig_leaderboard,
         rmse_vars[i],
         ploc = (i, 1),
         best_and_worst_category_name = "ANN",
@@ -270,9 +264,9 @@ end
 
 # Plot leaderboard
 ClimaAnalysis.Visualize.plot_leaderboard!(
-    fig,
+    fig_leaderboard,
     rmse_vars...,
     best_category_name = "ANN",
     ploc = (4, 1),
 )
-CairoMakie.save(joinpath(leaderboard_base_path, "bias_leaderboard.png"), fig)
+CairoMakie.save(joinpath(leaderboard_base_path, "bias_leaderboard.png"), fig_leaderboard)

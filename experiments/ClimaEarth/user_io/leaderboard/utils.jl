@@ -204,13 +204,13 @@ function find_and_resample(
 
     time_index = ClimaAnalysis.Utils.nearest_index(available_times, date)
     println("The time index we are using is $time_index which is closest to $date")
-
+    println("This corresponds to the date $(available_times[time_index])")
     # NOTE: We are hardcoding that the time index is the last one and that there are three
     # dimensions! We should generalize this (the NetCDF file contains all the information to
     # deduce this).
 
     data_arr = obs.preprocess_data_fn(obs.ncdataset[obs.var_name][:, :, time_index])
-    println("The first five elements of the data is $(data_arr[1,1:5])")
+    println("The first five elements of the obs data is $(data_arr[1,1:5])")
 
     lon_arr = obs.ncdataset[obs.lon_name][:]
     lat_arr = obs.ncdataset[obs.lat_name][:]
