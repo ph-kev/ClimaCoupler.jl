@@ -29,7 +29,7 @@ compare_vars_biases_plot_extrema = Dict(
 # leaderboard_base_path = dir_paths.artifacts
 
 # Path to saved leaderboards
-leaderboard_base_path = "testing_leaderboard/saved_leaderboard/"
+leaderboard_base_path = "testing_leaderboard/faithful/"
 
 # Path to simulation data
 diagnostics_folder_path = "testing_leaderboard/leaderboard_data/output_active"
@@ -77,7 +77,7 @@ for short_name in arr
     # dimension which interpolation does not like)
     # Simulation data
     obs_var = obs_var_dict[short_name]
-
+    short_name == "rsdt" && (obs_var = ClimaAnalysis.convert_units(obs_var, "W m^-2", conversion_function = x -> x))
     # Get rid of startup times
     # Make a copy since the function return the OutputVar's time array and not a copy of it
     diagnostics_times = ClimaAnalysis.times(sim_var) |> copy
@@ -106,42 +106,43 @@ for short_name in arr
     end
 
     obs_var = dates_to_times(obs_var, sim_var.attributes["start_date"])
-    obs_var = reorder_as(obs_var, sim_var)
+    obs_var = ClimaAnalysis.reordered_as(obs_var, sim_var)
 
     obs_var = ClimaAnalysis.window(
         obs_var,
         "time";
         left = diagnostics_times[begin],
-        right = diagnostics_times[end], # janky way of being able to resample...
+        right = diagnostics_times[end],
     )
 
-    # THIS IS THE CULPRIT (I NEED TO RESAMPLE ONLY OVER LON AND LAT AND NOT OVER TIME)
-    # @infiltrate
-    obs_var = resampled_as_ignore_time(obs_var, sim_var)
-    # @infiltrate
+    obs_var = replace_time(obs_var, copy(sim_var.dims["time"]))
+    obs_var = ClimaAnalysis.resampled_as(obs_var, sim_var)
+
+    # Split seasons
+    obs_var_seasons = ClimaAnalysis.split_by_season(obs_var)
+    sim_var_seasons = ClimaAnalysis.split_by_season(sim_var)
+    obs_var_seasons = [obs_var, obs_var_seasons...]
+    sim_var_seasons = [sim_var, sim_var_seasons...]
 
     # Take time average
-    obs_var = obs_var |> ClimaAnalysis.average_time
-    sim_var = sim_var |> ClimaAnalysis.average_time
+    obs_var_seasons = obs_var_seasons .|> ClimaAnalysis.average_time
+    sim_var_seasons = sim_var_seasons .|> ClimaAnalysis.average_time
 
     # Fix up dim_attributes so they are the same (otherwise we get an error from ClimaAnalysis.arecompatible)
-    obs_var.dim_attributes["lon"] = sim_var.dim_attributes["lon"]
-    obs_var.dim_attributes["lat"] = sim_var.dim_attributes["lat"]
+    for (obs_var, sim_var) in zip(obs_var_seasons, sim_var_seasons)
+        obs_var.dim_attributes["lon"] = sim_var.dim_attributes["lon"]
+        obs_var.dim_attributes["lat"] = sim_var.dim_attributes["lat"]
+    end
 
-    obs_var = ClimaAnalysis.convert_units(
-                obs_var,
-                "W m^-2",
-                conversion_function = x -> x,
-            )
+    for (idx, obs_sim_tup) in enumerate(zip(obs_var_seasons, sim_var_seasons))
 
-    bias_pr_var = ClimaAnalysis.bias(sim_var, obs_var)
-
-    fig = CairoMakie.Figure()
-    ClimaAnalysis.Visualize.plot_bias_on_globe!(
-        fig,
-        sim_var,
-        obs_var,
-        cmap_extrema = compare_vars_biases_plot_extrema[short_name],
-    )
-    CairoMakie.save("testing_leaderboard/saved_leaderboard_analysis/bias_pr_total.png", fig)
+        fig = CairoMakie.Figure()
+        ClimaAnalysis.Visualize.plot_bias_on_globe!(
+            fig,
+            obs_sim_tup[2],
+            obs_sim_tup[1],
+            cmap_extrema = compare_vars_biases_plot_extrema[short_name],
+        )
+        CairoMakie.save("testing_leaderboard/faithful/bias_rsdt_$idx.png", fig)
+    end
 end

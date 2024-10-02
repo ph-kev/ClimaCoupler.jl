@@ -7,6 +7,7 @@ include("leaderboard_plotting_utils.jl")
 
 @info "Error against observations"
 
+# TODO: Make this an array of tuples or something so that we know what correspond to what
 # Short names for loading simulation data
 short_names_no_pr = [
     "rsdt",
@@ -94,12 +95,12 @@ end
 obs_var_dict = Dict{String,Any}(
     "pr" =>
         () -> begin
-            obs_var = ClimaAnalysis.read_var(
+            obs_var = ClimaAnalysis.OutputVar(
                 joinpath(
                     @clima_artifact("precipitation_obs"),
                     "gpcp.precip.mon.mean.197901-202305.nc",
                 ),
-                short_name = "precip",
+                "precip",
             )
             return obs_var
         end,
@@ -109,19 +110,15 @@ obs_var_dict = Dict{String,Any}(
 for (sim_name, obs_name) in zip(short_names_no_pr, obs_var_short_names_no_pr)
     obs_var_dict[sim_name] =
         () -> begin
-            obs_var = ClimaAnalysis.read_var(
+            obs_var = ClimaAnalysis.OutputVar(
                 joinpath(
                     @clima_artifact("radiation_obs"),
                     "CERES_EBAF_Ed4.2_Subset_200003-201910.nc",
                 ),
-                short_name = obs_name,
+                obs_name,
             )
             # Convert from W m-2 to W m^-2
-            obs_var = ClimaAnalysis.convert_units(
-                obs_var,
-                "W m^-2",
-                conversion_function = identity,
-            )
+            obs_var = ClimaAnalysis.set_units(obs_var, "W m^-2")
             return obs_var
         end
 end
@@ -130,13 +127,12 @@ sim_obs_comparsion_dict = Dict()
 seasons = ["ANN", "MAM", "JJA", "SON", "DJF"]
 
 for short_name in keys(sim_var_dict)
+    # Simulation data
     sim_var = sim_var_dict[short_name]()
 
-    # TODO: Error when showing/printing this variable (probably because of dates in time
-    # dimension which interpolation does not like)
-    # Simulation data
+    # Observational data
     obs_var = obs_var_dict[short_name]()
-    obs_var = dates_to_times(obs_var, sim_var.attributes["start_date"])
+    obs_var = dates_to_times_no_extra_day(obs_var, sim_var.attributes["start_date"])
 
     # Get rid of startup times
     # Make a copy since the function return the OutputVar's time array and not a copy of it
@@ -157,8 +153,8 @@ for short_name in keys(sim_var_dict)
         right = diagnostics_times[end],
     )
 
-    obs_var = reorder_as(obs_var, sim_var)
-    obs_var = resampled_as(obs_var, sim_var)
+    obs_var = ClimaAnalysis.reordered_as(obs_var, sim_var) # TODO: Remove this later, only for debugging
+    obs_var = ClimaAnalysis.resampled_as(obs_var, sim_var)
 
     obs_var_seasons = ClimaAnalysis.split_by_season(obs_var)
     sim_var_seasons = ClimaAnalysis.split_by_season(sim_var)
