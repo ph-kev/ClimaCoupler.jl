@@ -56,10 +56,7 @@ sim_var_dict = Dict{String,Any}(
                 "mm/day",
                 conversion_function = x -> x .* Float32(-86400),
             )
-            sim_var = ClimaAnalysis.shift_to_beginning_of_month(
-                sim_var,
-                shift_by_months = -1,
-            )
+            sim_var = ClimaAnalysis.shift_to_start_of_previous_month(sim_var)
             return sim_var
         end,
 )
@@ -72,8 +69,7 @@ for (short_name, _) in sim_obs_short_names_no_pr
                 ClimaAnalysis.SimDir(diagnostics_folder_path),
                 short_name = short_name,
             )
-            sim_var =
-                ClimaAnalysis.shift_to_beginning_of_month(sim_var, shift_by_months = -1)
+            sim_var = ClimaAnalysis.shift_to_start_of_previous_month(sim_var)
             return sim_var
         end
 end
@@ -109,7 +105,7 @@ for (sim_name, obs_name) in sim_obs_short_names_no_pr
                 shift_by = Dates.firstdayofmonth,
             )
             # Convert from W m-2 to W m^-2 (TODO: Add check that it is the units we are expecting)
-            units(obs_var) == "W m-2" ?
+            ClimaAnalysis.units(obs_var) == "W m-2" ?
             obs_var = ClimaAnalysis.set_units(obs_var, "W m^-2") :
             error("Did not expect $(units(obs_var)) for the units")
             return obs_var
@@ -126,28 +122,11 @@ for short_name in keys(sim_var_dict)
     # Observational data
     obs_var = obs_var_dict[short_name](sim_var.attributes["start_date"])
 
-    # Get rid of startup times
-    # Make a copy since the function return the OutputVar's time array and not a copy of it
-    diagnostics_times = ClimaAnalysis.times(sim_var) |> copy
-    spinup_months = 6
-    sim_start_date = Dates.DateTime(sim_var.attributes["start_date"])
-
-    # spinup_cutoff_date is the date we want to include
-    spinup_cutoff_date = sim_start_date + Dates.Month(spinup_months)
-    spinup_cutoff =
-        ClimaAnalysis.Utils.period_to_seconds_float(spinup_cutoff_date - sim_start_date)
-    if diagnostics_times[end] >= spinup_cutoff
-        filter!(x -> x >= spinup_cutoff, diagnostics_times)
-    end
-
-
-    # Use window to get rid of spinup months
-    sim_var = ClimaAnalysis.window(
-        sim_var,
-        "time";
-        left = diagnostics_times[begin],
-        right = diagnostics_times[end],
-    )
+    # Remove first spin_up_months from simulation
+    spin_up_months = 6
+    spinup_cutoff = spin_up_months * 31 * 86400.0
+    ClimaAnalysis.times(sim_var)[end] >= spinup_cutoff &&
+        (sim_var = ClimaAnalysis.window(sim_var, "time", left = spinup_cutoff))
 
     obs_var = ClimaAnalysis.resampled_as(obs_var, sim_var)
     obs_var_seasons = ClimaAnalysis.split_by_season(obs_var)
@@ -161,12 +140,11 @@ for short_name in keys(sim_var_dict)
     obs_var_seasons = obs_var_seasons .|> ClimaAnalysis.average_time
     sim_var_seasons = sim_var_seasons .|> ClimaAnalysis.average_time
 
-    # Fix up dim_attributes so they are the same (otherwise we get an error from ClimaAnalysis.arecompatible)
-    # TODO: Find a better way of doing this (probably change this code in arecompatible)
-    for (obs_var, sim_var) in zip(obs_var_seasons, sim_var_seasons)
-        obs_var.dim_attributes["lon"] = sim_var.dim_attributes["lon"]
-        obs_var.dim_attributes["lat"] = sim_var.dim_attributes["lat"]
+    # Add "mean " for plotting the title
+    for sim_var in sim_var_seasons
+        sim_var.attributes["short_name"] = "mean $(ClimaAnalysis.short_name(sim_var))"
     end
+
     sim_obs_comparsion_dict[short_name] = Dict(
         season => (sim_var_s, obs_var_s) for
         (season, sim_var_s, obs_var_s) in zip(seasons, sim_var_seasons, obs_var_seasons)
@@ -253,11 +231,11 @@ end
 # Plot box plots
 rmse_vars = (rmse_var_pr, rmse_var_rsut, rmse_var_rlut)
 fig_leaderboard = CairoMakie.Figure(; size = (800, 300 * 3 + 400), fontsize = 20)
-for i in eachindex(rmse_vars)
+for (loc, rmse_var) in enumerate(rmse_vars)
     ClimaAnalysis.Visualize.plot_boxplot!(
         fig_leaderboard,
-        rmse_vars[i],
-        ploc = (i, 1),
+        rmse_var,
+        ploc = (loc, 1),
         best_and_worst_category_name = "ANN",
     )
 end
