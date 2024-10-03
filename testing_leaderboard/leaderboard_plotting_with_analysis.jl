@@ -104,10 +104,10 @@ for (sim_name, obs_name) in sim_obs_short_names_no_pr
                 new_start_date = start_date,
                 shift_by = Dates.firstdayofmonth,
             )
-            # Convert from W m-2 to W m^-2 (TODO: Add check that it is the units we are expecting)
+            # Convert from W m-2 to W m^-2
             ClimaAnalysis.units(obs_var) == "W m-2" ?
             obs_var = ClimaAnalysis.set_units(obs_var, "W m^-2") :
-            error("Did not expect $(units(obs_var)) for the units")
+            error("Did not expect $(ClimaAnalysis.units(obs_var)) for the units")
             return obs_var
         end
 end
